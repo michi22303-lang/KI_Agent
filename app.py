@@ -20,7 +20,7 @@ topic = st.text_input("Welches Digitalisierungs-Thema soll analysiert werden?", 
 if st.button("Strategie-Analyse starten"):
     # Das Gemini Modell initialisieren
     gemini_llm = LLM(
-        model="gemini/gemini-1.5-flash", 
+       model="gemini/models/gemini-1.5-flash", 
         api_key=google_key,
         config={
         "safety_settings": [
