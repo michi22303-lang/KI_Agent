@@ -1,11 +1,11 @@
 import streamlit as st
 from crewai import Agent, Task, Crew, LLM
-import streamlit.components.v1 as components
 import sys
 import re
+import time
 
 # 1. Seite konfigurieren
-st.set_page_config(page_title="KI-Strategie Agentur V2", page_icon="📈", layout="wide")
+st.set_page_config(page_title="KI-Strategie Agentur Pro", page_icon="🏢", layout="wide")
 
 try:
     google_key = st.secrets["GOOGLE_API_KEY"]
@@ -13,109 +13,108 @@ except Exception:
     st.error("Fehler: GOOGLE_API_KEY nicht gefunden.")
     st.stop()
 
-st.title("📈 KI-Strategie-Agentur: Master-Dossier & Präsentation")
-st.markdown("Beobachte dein Team dabei, wie es eine komplette Strategie inklusive Slides entwickelt.")
+st.title("🏢 KI-Strategie Agentur: Collaborative Mode")
 
-topic = st.text_input("Digitalisierungs-Thema:", "KI-Agenten im Kundenservice 2026")
+# 2. Log-System Setup
+class StreamlitRedirect:
+    def __init__(self, placeholder):
+        self.placeholder = placeholder
+        self.output = ""
+    def write(self, text):
+        # Bereinigung von Terminal-Farbcodes
+        text = re.sub(r'\x1B[@-_][0-?]*[ -/]*[@-~]', '', text)
+        if text.strip():
+            self.output += text + "\n"
+            # Wir zeigen nur die letzten 15 Zeilen für bessere Lesbarkeit
+            lines = self.output.split("\n")
+            display_text = "\n".join(lines[-15:])
+            self.placeholder.code(display_text)
+    def flush(self): pass
 
-if st.button("Strategie & Präsentation erstellen"):
+topic = st.text_input("Digitalisierungs-Thema:", "KI-Agenten in der Logistik 2026")
+
+if st.button("Kollaborative Analyse starten"):
     
-    # Workflow-Status Anzeigen
-    status_box = st.container()
-    with status_box:
-        st.subheader("Arbeitsfortschritt")
-        col_a, col_b = st.columns([1, 2])
-        with col_a:
-            s1, s2, s3, s4 = st.empty(), st.empty(), st.empty(), st.empty()
-            s1.markdown("⚪ Analyst bereit")
-            s2.markdown("⚪ Stratege bereit")
-            s3.markdown("⚪ Designer bereit")
-            s4.markdown("⚪ Marketingexperte bereit")
+    # UI Elemente für Status und Logs
+    col_status, col_logs = st.columns([1, 1])
+    
+    with col_status:
+        st.subheader("📍 Workflow & Zeit")
+        progress_bar = st.progress(0)
+        timer_text = st.empty()
+        status_update = st.empty()
         
-        with col_b:
-            log_expander = st.expander("Live-Logs (Agenten-Gedanken)", expanded=True)
-            log_output = log_expander.empty()
+    with col_logs:
+        st.subheader("🕵️‍♂️ Agenten-Chat (Live-Logs)")
+        log_placeholder = st.empty()
 
-    # Log-Umleitung
-    class StreamToStreamlit:
-        def __init__(self, expander_obj):
-            self.expander_obj = expander_obj
-            self.buffer = ""
-        def write(self, data):
-            clean_data = re.sub(r'\x1B[@-_][0-?]*[ -/]*[@-~]', '', data)
-            self.buffer += clean_data
-            self.expander_obj.code(self.buffer, language="text")
-        def flush(self): pass
-
-    sys.stdout = StreamToStreamlit(log_output)
+    # Umleitung starten
+    sys.stdout = StreamlitRedirect(log_placeholder)
 
     gemini_llm = LLM(model="gemini/gemini-2.0-flash-lite", api_key=google_key, temperature=0.7)
     
-    # Agenten
+    # 3. Agenten mit DELEGATION (Erlaubt Austausch untereinander)
     analyst = Agent(
         role='Senior Technologie-Analyst',
-        goal=f'Detaillierte technische Analyse zu {topic} auf Deutsch.',
-        backstory="IT-Experte für Zukunftstrends.", llm=gemini_llm, verbose=True, max_iter=1
+        goal=f'Analysiere {topic} technisch.',
+        backstory="Du bist die technische Instanz. Beantworte Rückfragen des Strategen präzise.",
+        llm=gemini_llm, allow_delegation=True, verbose=True
     )
     strategist = Agent(
         role='Strategischer Unternehmensberater',
-        goal=f'Roadmap und ROI-Analyse für {topic} auf Deutsch.',
-        backstory="Experte für Business-Transformation.", llm=gemini_llm, verbose=True, max_iter=1
+        goal=f'Entwickle Business-Cases. Frage beim Analysten nach, falls technische Details unklar sind.',
+        backstory="Du bist der Kopf der Strategie. Du validierst deine Annahmen beim Analysten.",
+        llm=gemini_llm, allow_delegation=True, verbose=True
     )
     designer = Agent(
         role='Konzeptioneller Designer',
-        goal=f'Visuelles Konzept für eine Infografik zu {topic} auf Deutsch.',
-        backstory="Experte für visuelle Storyboards.", llm=gemini_llm, verbose=True, max_iter=1
+        goal='Erstelle ein Visuelles Konzept.',
+        backstory="Du arbeitest eng mit dem Marketing zusammen, um Design-Vorgaben abzustimmen.",
+        llm=gemini_llm, allow_delegation=True, verbose=True
     )
     marketing = Agent(
         role='Marketing-Direktor',
-        goal=f'Erstelle einen ausformulierten Bericht und Präsentations-Slides zu {topic} auf Deutsch.',
-        backstory="Du bist ein Meister der Rhetorik und erstellst hochwertige Business-Texte.",
-        llm=gemini_llm, verbose=True, max_iter=1
+        goal='Erstelle das finale Dossier und die Slides. Stimme dich mit dem Designer über die Optik ab.',
+        backstory="Du bist der finale Redakteur. Du delegierst Design-Fragen an den Designer.",
+        llm=gemini_llm, allow_delegation=True, verbose=True
     )
 
     # Tasks
-    t1 = Task(description=f"Technik-Analyse {topic}.", agent=analyst, expected_output="Technik-Bericht.")
-    t2 = Task(description=f"Business-Strategie {topic}.", agent=strategist, expected_output="Strategie-Bericht.")
-    t3 = Task(description=f"Design-Konzept für {topic}.", agent=designer, expected_output="Infografik-Beschreibung.")
-    t4 = Task(
-        description=f"""Nimm alle Infos und erstelle:
-        1. Einen ausführlichen, flüssigen Management-Bericht (Dossier-Stil).
-        2. Eine Präsentation mit 6 Slides (Titel & Bulletpoints).
-        Nutze '---' um Bericht und Präsentation zu trennen.""",
-        agent=marketing,
-        expected_output="Ein langes Dossier und ein Slide-Deck auf Deutsch."
-    )
+    t1 = Task(description=f"Technik-Check {topic}.", agent=analyst, expected_output="Analyse.")
+    t2 = Task(description=f"Strategie & ROI für {topic}.", agent=strategist, expected_output="Business-Plan.")
+    t3 = Task(description=f"Visuelles Storyboard für {topic}.", agent=designer, expected_output="Design-Konzept.")
+    t4 = Task(description="Erstelle das 1000-Wörter Dossier und 6 Slides. Trenne beides mit '---'.", agent=marketing, expected_output="Dossier & Slides.")
 
     crew = Crew(agents=[analyst, strategist, designer, marketing], tasks=[t1, t2, t3, t4], max_rpm=2)
     
+    start_time = time.time()
+    
     try:
-        s1.markdown("🔵 Analyst arbeitet...")
+        # Phase 1: Start
+        status_update.info("Agenten nehmen die Arbeit auf... (Geschätzte Dauer: 90-120 Sek.)")
+        progress_bar.progress(10)
+        
+        # Crew Ausführung
         result = str(crew.kickoff())
         
-        s1.markdown("✅ Analyst fertig"); s2.markdown("✅ Stratege fertig")
-        s3.markdown("✅ Designer fertig"); s4.markdown("✅ Marketingexperte fertig")
+        # Phase 2: Abschluss
+        end_time = time.time()
+        duration = int(end_time - start_time)
+        
+        progress_bar.progress(100)
+        status_update.success(f"Fertig! Gesamtdauer: {duration} Sekunden.")
         
         st.divider()
-
-        # Splitten von Bericht und Slides (falls Trenner vorhanden)
+        
+        # Tabs für Ergebnisse
+        tab1, tab2 = st.tabs(["📄 Strategisches Dossier", "🖥️ Präsentations-Slides"])
+        
         if "---" in result:
             parts = result.split("---")
-            bericht = parts[0]
-            slides = parts[1]
+            with tab1: st.markdown(parts[0])
+            with tab2: st.markdown(parts[1])
         else:
-            bericht = result
-            slides = "Die Slides wurden am Ende des Berichts angefügt."
-
-        # Anzeige in Tabs für bessere Übersicht
-        tab1, tab2 = st.tabs(["📄 Ausführliches Dossier", "🖥️ Präsentations-Slides"])
-        
-        with tab1:
-            st.markdown(bericht)
-        with tab2:
-            st.markdown(slides)
-        
-        st.download_button("Dossier & Slides speichern", result, file_name="Strategie_Dossier.md")
+            with tab1: st.markdown(result)
 
     except Exception as e:
         st.error(f"Fehler: {e}")
