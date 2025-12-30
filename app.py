@@ -3,74 +3,72 @@ from crewai import Agent, Task, Crew, LLM
 import os
 
 # Seite konfigurieren
-st.set_page_config(page_title="Digitalisierungs-Strategie Team", page_icon="🚀")
+st.set_page_config(page_title="Digitalisierungs-Strategie 2026", page_icon="🚀")
 
 # Key sicher aus Streamlit Secrets laden
 try:
     google_key = st.secrets["GOOGLE_API_KEY"]
 except Exception:
-    st.error("Fehler: GOOGLE_API_KEY wurde nicht in den Secrets gefunden.")
+    st.error("Fehler: GOOGLE_API_KEY wurde nicht in den Secrets gefunden. Bitte in den Streamlit Cloud Settings unter 'Secrets' hinterlegen.")
     st.stop()
 
-st.title("🚀 Digitalisierungs-Strategie Team")
-st.markdown("Dieses Team aus KI-Agenten analysiert Trends und entwickelt Business-Szenarien für 2026.")
+st.title("🤖 Digital-Strategie Team (Gemini 2.0)")
+st.markdown("Nutzt Google Gemini 2.0 Flash-Lite für ultra-schnelle Analysen.")
 
-topic = st.text_input("Welches Digitalisierungs-Thema soll analysiert werden?", "Autonome Logistik-Drohnen")
+# Eingabefeld für das Thema
+topic = st.text_input("Welches Digitalisierungs-Thema soll analysiert werden?", "KI-Agenten im Mittelstand")
 
 if st.button("Strategie-Analyse starten"):
-    # Das Gemini Modell initialisieren
+    # Das Gemini 2.0 Modell initialisieren
+    # WICHTIG: Die Schreibweise 'gemini/...' triggert die richtige Schnittstelle
     gemini_llm = LLM(
-    model="gemini/gemini-2.0-flash-lite", 
-    api_key=google_key,
-    temperature=0.7
-)
+        model="gemini/gemini-2.0-flash-lite", 
+        api_key=google_key,
+        temperature=0.7
     )
     
-    # 1. Agent: Der Analyst
+    # 1. Agent: Der Analyst (Fakten & Technik)
     analyst = Agent(
         role='Technologie-Analyst',
-        goal=f'Identifiziere technologische Fakten und Risiken zu {topic}',
-        backstory="Du bist Experte für IT-Infrastruktur und erkennst technologische Hypes von echten Durchbrüchen.",
+        goal=f'Identifiziere technologische Fakten zu {topic} im Jahr 2026',
+        backstory="Du bist Experte für IT-Infrastruktur und neue Tech-Trends.",
         llm=gemini_llm,
-        allow_delegation=False,
         verbose=True
     )
     
-    # 2. Agent: Der Stratege
+    # 2. Agent: Der Stratege (Business & Use-Cases)
     strategist = Agent(
         role='Digital-Business-Strategist',
-        goal=f'Entwickle wirtschaftliche Use-Cases und ROI-Szenarien für {topic}',
-        backstory="Du bist spezialisiert auf digitale Transformation und Geschäftsentwicklung im Mittelstand.",
+        goal=f'Entwickle wirtschaftliche Use-Cases für {topic}',
+        backstory="Du bist spezialisiert auf digitale Transformation und Geschäftsentwicklung.",
         llm=gemini_llm,
-        allow_delegation=False,
         verbose=True
     )
     
-    # 3. Agent: Der Kommunikator
+    # 3. Agent: Der Kommunikator (Zusammenfassung)
     creator = Agent(
         role='Executive Editor',
-        goal=f'Erstelle ein überzeugendes Management-Summary über {topic}',
-        backstory="Du schreibst für Vorstände und Geschäftsführer – präzise, faktenbasiert und visionär.",
+        goal=f'Erstelle ein Management-Summary über {topic}',
+        backstory="Du schreibst präzise Berichte für die Geschäftsführung.",
         llm=gemini_llm,
-        allow_delegation=False,
         verbose=True
     )
 
     # Tasks definieren
     t1 = Task(
-        description=f"Analysiere den aktuellen Stand und die Trends von {topic} mit Fokus auf das Jahr 2026.",
+        description=f"Analysiere den Stand von {topic} für 2026.",
         agent=analyst,
-        expected_output="Eine detaillierte Liste technischer Fakten und potenzieller Risiken."
+        expected_output="Technische Faktenliste."
     )
     t2 = Task(
-        description=f"Entwickle basierend auf der Analyse drei konkrete Business-Szenarien für Unternehmen.",
+        description=f"Erstelle 3 Business-Use-Cases basierend auf der Analyse.",
         agent=strategist,
-        expected_output="Drei Use-Cases mit jeweils einem kurzen Nutzenversprechen (ROI)."
+        expected_output="Drei konkrete Szenarien mit Nutzenversprechen."
     )
     t3 = Task(
-        description=f"Fasse alle Erkenntnisse in einem strukturierten Management-Summary zusammen (Markdown).",
+        description=f"Fasse alles in einem fertigen Bericht zusammen.",
         agent=creator,
-        expected_output="Ein fertiger Bericht mit Einleitung, Technik-Check, Business-Szenarien und Fazit."
+        expected_output="Ein strukturierter Bericht in Markdown."
     )
 
     # Crew zusammenstellen
@@ -80,8 +78,12 @@ if st.button("Strategie-Analyse starten"):
         verbose=True
     )
     
-    with st.spinner('Die Agenten analysieren, diskutieren und schreiben...'):
-        result = crew.kickoff()
-        st.success("Analyse abgeschlossen!")
-        st.markdown("---")
-        st.markdown(str(result))
+    with st.spinner('Die Gemini 2.0 Agenten arbeiten...'):
+        try:
+            result = crew.kickoff()
+            st.success("Analyse abgeschlossen!")
+            st.markdown("---")
+            st.markdown(str(result))
+        except Exception as e:
+            st.error(f"Ein Fehler ist aufgetreten: {e}")
+            st.info("Checke bitte, ob 'litellm' in deiner requirements.txt steht.")
