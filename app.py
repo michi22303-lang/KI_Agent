@@ -20,16 +20,10 @@ topic = st.text_input("Welches Digitalisierungs-Thema soll analysiert werden?", 
 if st.button("Strategie-Analyse starten"):
     # Das Gemini Modell initialisieren
     gemini_llm = LLM(
-       model="gemini/models/gemini-2.0-flash-lite", 
-        api_key=google_key,
-        config={
-        "safety_settings": [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-        ]
-    }
+    model="gemini/gemini-2.0-flash-lite", 
+    api_key=google_key,
+    temperature=0.7
+)
     )
     
     # 1. Agent: Der Analyst
