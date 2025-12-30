@@ -3,9 +3,10 @@ from crewai import Agent, Task, Crew, LLM
 import time
 
 # 1. Seite konfigurieren
-st.set_page_config(page_title="KI-Strategie Facility Management", page_icon="🏢", layout="wide")
+st.set_page_config(page_title="FM Strategie-Dossier", page_icon="🏢", layout="wide")
 
-# Session State für Slides initialisieren
+if "full_report" not in st.session_state:
+    st.session_state.full_report = ""
 if "slides" not in st.session_state:
     st.session_state.slides = []
 if "current_slide" not in st.session_state:
@@ -17,100 +18,88 @@ except Exception:
     st.error("Bitte API Key in den Streamlit Secrets hinterlegen.")
     st.stop()
 
-st.title("🏢 Strategie-Team: Facility Management Digitalisierung")
+st.title("🏢 FM Digital-Strategie & Management-Dossier")
 
-topic = st.text_input("Thema:", "KI-gestützte Gebäudeinstandhaltung 2026")
+topic = st.text_input("Digitalisierungsthema für Facility Management:", "Smart Building IoT & Predictive Maintenance")
 
-# Platzhalter für Live-Logs
 log_area = st.empty()
 
-# REPARIERTE CALLBACK FUNKTION
 def step_callback(step_output):
     try:
-        thought = "Analysiere nächsten Schritt..."
+        thought = "Verarbeite Daten..."
         if hasattr(step_output, 'thought'):
             thought = step_output.thought
         elif isinstance(step_output, dict) and 'thought' in step_output:
             thought = step_output['thought']
-        log_area.info(f"🕵️ **Ein Agent ist aktiv...**\n\n*Gedanken:* {thought[:250]}...")
-    except Exception:
+        log_area.info(f"🕵️ **Agenten-Status:** {thought[:200]}...")
+    except:
         log_area.info("🕵️ Ein Agent plant den nächsten Schritt...")
 
-if st.button("Analyse & Präsentation starten"):
-    gemini_llm = LLM(model="gemini/gemini-2.0-flash-lite", api_key=google_key, temperature=0.4)
+if st.button("Umfassende Analyse starten"):
+    gemini_llm = LLM(model="gemini/gemini-2.0-flash-lite", api_key=google_key, temperature=0.3)
     
-    # Status-Monitor (jetzt 4 Spalten)
+    # Status-Monitor
     status_cols = st.columns(4)
-    s1, s2, s3, s4 = status_cols[0].empty(), status_cols[1].empty(), status_cols[2].empty(), status_cols[3].empty()
-    s1.info("⚪ Analyst"); s2.info("⚪ Stratege"); s3.info("⚪ Marketing"); s4.info("⚪ Abteilungsleiter")
+    s1, s2, s3, s4 = [c.empty() for c in status_cols]
+    s1.info("⚪ Technik"); s2.info("⚪ Strategie"); s3.info("⚪ Marketing"); s4.info("⚪ Leitung")
 
-    # Agenten Definition
-    analyst = Agent(role='Analyst', goal='Technische Fakten finden.', backstory="IT-Experte.", llm=gemini_llm, step_callback=step_callback, verbose=True)
-    strategist = Agent(role='Stratege', goal='ROI planen.', backstory="Business-Experte.", llm=gemini_llm, step_callback=step_callback, verbose=True)
-    marketing = Agent(role='Marketing', goal='Erstelle 6 Slides. Trenne JEDE Slide exakt mit dem Wort: NEUESLIDE', backstory="Präsentations-Profi.", llm=gemini_llm, step_callback=step_callback, verbose=True)
-    
-    # Der 4. Agent: Leiter Digitalisierung
-    head_of_digital = Agent(
-        role='Leiter Digitalisierungsabteilung', 
-        goal='Prüfe die Ergebnisse auf Relevanz für das Facility Management und gib ein finales Statement ab.', 
-        backstory="Du hast den Blick auf das gesamte Facility Management Unternehmen. Du stellst sicher, dass die Lösung operativ umsetzbar ist und schließt die Präsentation mit einem starken Fazit ab.", 
-        llm=gemini_llm, 
-        step_callback=step_callback, 
-        verbose=True
-    )
+    # Agenten
+    analyst = Agent(role='Analyst', goal='Technische Fakten finden.', backstory="IT-Experte für FM-Systeme.", llm=gemini_llm, step_callback=step_callback)
+    strategist = Agent(role='Stratege', goal='ROI und Roadmap planen.', backstory="Experte für FM-Business.", llm=gemini_llm, step_callback=step_callback)
+    marketing = Agent(role='Marketing', goal='Erstelle Slides und formuliere das Dossier aus.', backstory="Profi für Management-Präsentationen.", llm=gemini_llm, step_callback=step_callback)
+    head_of_digital = Agent(role='Leiter Digitalisierung', goal='Finales Statement zur FM-Relevanz abgeben.', backstory="Entscheidungsträger im Facility Management.", llm=gemini_llm, step_callback=step_callback)
 
-    t1 = Task(description=f"Technik-Analyse für {topic}", agent=analyst, expected_output="Analyse.")
-    t2 = Task(description=f"Business-Strategie für {topic}", agent=strategist, expected_output="Roadmap.")
-    t3 = Task(description=f"Erstelle 6 Slides für {topic}. Nutze das Trennwort NEUESLIDE zwischen den Slides.", agent=marketing, expected_output="Slide-Texte.")
-    
-    # Task für den Leiter
-    t4 = Task(description=f"Erstelle ein finales Management-Statement (ca. 150 Wörter) aus Sicht des Facility Managements als letzte Slide. Nutze davor das Wort NEUESLIDE.", agent=head_of_digital, expected_output="Finales Statement.")
+    # Tasks
+    t1 = Task(description=f"Detaillierte Analyse zu {topic}.", agent=analyst, expected_output="Technische Analyse.")
+    t2 = Task(description=f"ROI-Roadmap für {topic}.", agent=strategist, expected_output="Strategie-Roadmap.")
+    t3 = Task(description="Erstelle aus Analyse und Roadmap ein ausführliches Dossier UND 6 Slides (getrennt durch 'SLIDETRENNER').", agent=marketing, expected_output="Dossier und Slides.")
+    t4 = Task(description="Schreibe ein finales Statement zur Relevanz für unser FM-Unternehmen am Ende des Dossiers und als letzte Slide.", agent=head_of_digital, expected_output="Finales Statement.")
 
     crew = Crew(agents=[analyst, strategist, marketing, head_of_digital], tasks=[t1, t2, t3, t4], max_rpm=1)
     
-    s1.warning("🔵 Aktiv...")
-    with st.spinner("Das Team berät sich..."):
+    s1.warning("🔵 In Arbeit...")
+    with st.spinner("Das Expertenteam analysiert..."):
         result = str(crew.kickoff())
         
-    s1.success("✅ Erledigt"); s2.success("✅ Erledigt"); s3.success("✅ Erledigt"); s4.success("✅ Erledigt")
+    st.session_state.full_report = result
+    s1.success("✅ Fertig"); s2.success("✅ Fertig"); s3.success("✅ Fertig"); s4.success("✅ Fertig")
     
-    # Slides verarbeiten
-    raw_slides = result.split("NEUESLIDE")
-    st.session_state.slides = [s.strip() for s in raw_slides if len(s.strip()) > 10]
-    st.session_state.current_slide = 0
-    st.success("Dossier & Statement bereit!")
+    # Trennung von Dossier und Slides
+    if "SLIDETRENNER" in result:
+        parts = result.split("SLIDETRENNER")
+        st.session_state.slides = [p.strip() for p in parts if len(p.strip()) > 20]
+    else:
+        st.session_state.slides = [result]
+    
     log_area.empty()
 
-# --- INTERAKTIVE SLIDE-SHOW ---
-if st.session_state.slides:
-    st.divider()
+# Anzeige
+if st.session_state.full_report:
+    tab1, tab2 = st.tabs(["📄 Ausführliches Dossier", "🖥️ Interaktive Slides"])
     
-    col_nav1, col_slide, col_nav2 = st.columns([1, 4, 1])
-    
-    if col_nav1.button("⬅️ Zurück"):
-        if st.session_state.current_slide > 0:
-            st.session_state.current_slide -= 1
-            st.rerun()
-        
-    if col_nav2.button("Vorwärts ➡️"):
-        if st.session_state.current_slide < len(st.session_state.slides) - 1:
-            st.session_state.current_slide += 1
-            st.rerun()
+    with tab1:
+        st.markdown(st.session_state.full_report.split("SLIDETRENNER")[0])
+        st.markdown("---")
+        st.subheader("🏁 Statement der Abteilungsleitung")
+        st.info(st.session_state.full_report.split("SLIDETRENNER")[-1])
 
-    with col_slide:
-        current = st.session_state.slides[st.session_state.current_slide]
-        # Kennzeichnung für die letzte Slide (Statement des Leiters)
-        is_last = st.session_state.current_slide == len(st.session_state.slides) - 1
-        title = "Statement: Leiter Digitalisierung" if is_last else f"Folie {st.session_state.current_slide + 1}"
-        
-        st.markdown(f"""
-            <div style="background-color: #f8f9fb; padding: 40px; border-radius: 20px; border-top: 10px solid {'#28a745' if is_last else '#007bff'}; min-height: 350px; color: #1a1a1a;">
-                <h3 style="color: #333;">{title}</h3>
-                <hr>
-                <div style="font-family: sans-serif; font-size: 1.1em;">
-                    {current}
+    with tab2:
+        col_n1, col_s, col_n2 = st.columns([1, 4, 1])
+        if col_n1.button("⬅️"): 
+            st.session_state.current_slide = max(0, st.session_state.current_slide - 1)
+            st.rerun()
+        if col_n2.button("➡️"): 
+            st.session_state.current_slide = min(len(st.session_state.slides)-1, st.session_state.current_slide + 1)
+            st.rerun()
+            
+        with col_s:
+            curr = st.session_state.current_slide
+            is_last = curr == len(st.session_state.slides) - 1
+            st.markdown(f"""
+                <div style="background-color: #f8f9fb; padding: 30px; border-radius: 15px; border-top: 8px solid {'#28a745' if is_last else '#007bff'};">
+                    <h3>{'Abschluss-Statement' if is_last else f'Folie {curr + 1}'}</h3>
+                    <hr>{st.session_state.slides[curr]}
                 </div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    st.download_button("Strategie-Dossier speichern", "\n\n---\n\n".join(st.session_state.slides), file_name="FM_Strategie_2026.md")
+            """, unsafe_allow_html=True)
+
+    st.download_button("Dossier & Statement (PDF/MD) speichern", st.session_state.full_report, file_name="FM_Strategie.md")
