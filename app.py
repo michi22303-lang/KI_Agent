@@ -4,7 +4,8 @@ import sys
 import re
 import time
 
-st.set_page_config(page_title="KI-Strategie Agentur Pro", page_icon="🏢", layout="wide")
+# 1. Seite konfigurieren
+st.set_page_config(page_title="KI-Strategie Agentur", page_icon="🏢", layout="wide")
 
 try:
     google_key = st.secrets["GOOGLE_API_KEY"]
@@ -12,85 +13,99 @@ except Exception:
     st.error("Fehler: GOOGLE_API_KEY nicht gefunden.")
     st.stop()
 
-# Robustes Log-System
-class StreamlitRedirect:
-    def __init__(self, placeholder):
-        self.placeholder = placeholder
-        self.output = ""
-    def write(self, text):
-        text = re.sub(r'\x1B[@-_][0-?]*[ -/]*[@-~]', '', text)
-        if text.strip():
-            self.output += text + "\n"
-            lines = self.output.split("\n")
-            self.placeholder.code("\n".join(lines[-10:]))
-    def flush(self): pass
+# Header
+st.title("🏢 KI-Strategie-Zentrum")
+st.markdown("Sequenzielle Verarbeitung für maximale Stabilität und Kosteneffizienz.")
 
-st.title("🏢 Strategie-Agentur (Stabilitäts-Modus)")
+topic = st.text_input("Thema für die Analyse:", "KI-gestützte Kreislaufwirtschaft 2026")
 
-topic = st.text_input("Thema:", "KI-Transformation 2026")
+if st.button("Analyse-Prozess starten"):
+    
+    # UI-Bereich für die Status-Anzeige
+    st.subheader("Stations-Monitor")
+    status_cols = st.columns(4)
+    with status_cols[0]: s1 = st.empty()
+    with status_cols[1]: s2 = st.empty()
+    with status_cols[2]: s3 = st.empty()
+    with status_cols[3]: s4 = st.empty()
 
-if st.button("Analyse starten"):
-    col_status, col_logs = st.columns([1, 1])
-    with col_status:
-        progress_bar = st.progress(0)
-        status_update = st.empty()
-    with col_logs:
-        log_placeholder = st.empty()
+    # Initialzustand
+    s1.info("🟡 Analyst\n(Wartet...)")
+    s2.info("🟡 Stratege\n(Wartet...)")
+    s3.info("🟡 Designer\n(Wartet...)")
+    s4.info("🟡 Marketing\n(Wartet...)")
+
+    # Log-Bereich
+    st.divider()
+    log_expander = st.expander("Agenten-Protokoll (Live)", expanded=True)
+    log_placeholder = log_expander.empty()
+
+    class StreamlitRedirect:
+        def __init__(self, placeholder):
+            self.placeholder = placeholder
+            self.output = ""
+        def write(self, text):
+            text = re.sub(r'\x1B[@-_][0-?]*[ -/]*[@-~]', '', text)
+            if text.strip():
+                self.output += text + "\n"
+                lines = self.output.split("\n")
+                self.placeholder.code("\n".join(lines[-8:]))
+        def flush(self): pass
 
     sys.stdout = StreamlitRedirect(log_placeholder)
 
-    # Wir nutzen hier eine stabilere Konfiguration für das LLM
+    # Gemini 2.0 Setup (Stabilisiert)
     gemini_llm = LLM(
         model="gemini/gemini-2.0-flash-lite", 
         api_key=google_key,
-        temperature=0.3, # Niedrigere Temperatur = stabilere Antworten
-        max_tokens=4000
+        temperature=0.4
     )
     
-    # Agenten mit reduzierter Komplexität für höhere Stabilität
+    # Agenten (Delegation deaktiviert für weniger Requests)
     analyst = Agent(
-        role='Technologie-Analyst',
-        goal=f'Analysiere {topic} technisch auf Deutsch.',
-        backstory="Du lieferst Fakten. Sei präzise und kurz angebunden.",
-        llm=gemini_llm, allow_delegation=False, verbose=True, max_iter=2
+        role='Analyst', goal=f'Technische Fakten zu {topic}.',
+        backstory="IT-Experte.", llm=gemini_llm, verbose=True, allow_delegation=False
     )
     strategist = Agent(
-        role='Business-Stratege',
-        goal='Entwickle Business-Cases auf Deutsch.',
-        backstory="Du bist der Strategiekopf.",
-        llm=gemini_llm, allow_delegation=True, verbose=True, max_iter=2
+        role='Stratege', goal=f'ROI-Plan für {topic}.',
+        backstory="Business-Experte.", llm=gemini_llm, verbose=True, allow_delegation=False
+    )
+    designer = Agent(
+        role='Designer', goal=f'Visualisierungs-Konzept für {topic}.',
+        backstory="Design-Profi.", llm=gemini_llm, verbose=True, allow_delegation=False
     )
     marketing = Agent(
-        role='Marketing-Direktor',
-        goal='Schreibe das Dossier und die Slides auf Deutsch.',
-        backstory="Du fasst alles zusammen. Du darfst Rückfragen an den Strategen stellen.",
-        llm=gemini_llm, allow_delegation=True, verbose=True, max_iter=2
+        role='Marketing', goal=f'Dossier und Slides zu {topic}.',
+        backstory="Kommunikations-Profi.", llm=gemini_llm, verbose=True, allow_delegation=False
     )
 
-    t1 = Task(description=f"Technik-Analyse {topic}.", agent=analyst, expected_output="Faktenbericht.")
-    t2 = Task(description=f"Business-Strategie für {topic}.", agent=strategist, expected_output="Strategieplan.")
-    t3 = Task(description="Erstelle ein Dossier und 6 Slides. Trenne mit '---'.", agent=marketing, expected_output="Finales Dokument.")
+    # Tasks
+    t1 = Task(description=f"Analysiere {topic}.", agent=analyst, expected_output="Technik-Daten.")
+    t2 = Task(description=f"Strategie für {topic}.", agent=strategist, expected_output="Business-Szenarien.")
+    t3 = Task(description=f"Design für {topic}.", agent=designer, expected_output="Layout-Konzept.")
+    t4 = Task(description=f"Erstelle Bericht und 6 Slides (Trenner: '---') zu {topic}.", agent=marketing, expected_output="Finales Dossier.")
 
-    # Crew mit Prozess-Optimierung
-    crew = Crew(
-        agents=[analyst, strategist, marketing], 
-        tasks=[t1, t2, t3], 
-        max_rpm=2,
-        cache=True # Cache aktivieren, um leere Re-Calls zu vermeiden
-    )
+    crew = Crew(agents=[analyst, strategist, designer, marketing], tasks=[t1, t2, t3, t4], max_rpm=1)
     
     try:
-        status_update.info("Agenten arbeiten... Bitte Fenster nicht schließen.")
-        progress_bar.progress(20)
+        # Visuelle Steuerung des Workflows
+        s1.warning("🔵 Analyst\n(Aktiv)")
         
-        # Den Kickoff in einer stabilen Umgebung ausführen
+        # Start
         result = crew.kickoff()
         full_result = str(result)
         
-        progress_bar.progress(100)
-        status_update.success("Analyse erfolgreich!")
+        # Alle auf Fertig setzen (Da Kickoff am Ende alles zurückgibt)
+        s1.success("✅ Analyst\n(Fertig)")
+        s2.success("✅ Stratege\n(Fertig)")
+        s3.success("✅ Designer\n(Fertig)")
+        s4.success("✅ Marketing\n(Fertig)")
         
-        tab1, tab2 = st.tabs(["📄 Dossier", "🖥️ Slides"])
+        st.divider()
+
+        # Tabs für die Ausgabe
+        tab1, tab2 = st.tabs(["📄 Strategie-Dossier", "🖥️ Slides / Präsentation"])
+        
         if "---" in full_result:
             parts = full_result.split("---")
             tab1.markdown(parts[0])
@@ -99,7 +114,6 @@ if st.button("Analyse starten"):
             tab1.markdown(full_result)
 
     except Exception as e:
-        st.error(f"LLM Fehler: Das Modell hat keine Antwort geliefert. Ursache: {e}")
-        st.info("Tipp: Versuche ein simpleres Thema oder warte 30 Sekunden.")
+        st.error(f"Ein Fehler ist aufgetreten: {e}")
     finally:
         sys.stdout = sys.__stdout__
