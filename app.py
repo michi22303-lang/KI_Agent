@@ -1,103 +1,85 @@
 import streamlit as st
 from crewai import Agent, Task, Crew, LLM
+import streamlit.components.v1 as components
 import os
 
-st.set_page_config(page_title="Digital-Strategie & Design", page_icon="🎨")
+st.set_page_config(page_title="KI-Strategie & Design", page_icon="📊", layout="wide")
 
 try:
     google_key = st.secrets["GOOGLE_API_KEY"]
 except Exception:
-    st.error("Bitte GOOGLE_API_KEY in den Streamlit Secrets hinterlegen.")
+    st.error("Bitte GOOGLE_API_KEY in den Secrets hinterlegen.")
     st.stop()
 
-st.title("🎨 Strategie & Design-Team (Gemini 2.0)")
-st.markdown("Analysiert, entwickelt Strategien und erstellt Infografik-Konzepte.")
+st.title("🎨 Dein Digital-Strategie Team")
+st.markdown("Analysen und visuelle Konzepte – komplett auf Deutsch.")
 
-topic = st.text_input("Thema:", "Ethik in der KI-Entwicklung 2026")
+topic = st.text_input("Digitalisierungs-Thema:", "KI-Agenten im Kundenservice")
 
-if st.button("Komplette Analyse mit Design starten"):
+if st.button("Analyse & Infografik erstellen"):
+    # Gemini 2.0 Modell mit deutschem System-Prompt-Hinweis
     gemini_llm = LLM(
         model="gemini/gemini-2.0-flash-lite", 
         api_key=google_key,
-        temperature=0.7
+        temperature=0.5 # Etwas niedriger für präzisere Grafik-Codes
     )
     
-    # 1. Agent: Der Analyst (Fakten & Technik)
+    # AGENTEN (Alle auf Deutsch getrimmt)
     analyst = Agent(
-        role='Tech-Analyst',
-        goal=f'Fakten zu {topic} finden',
-        backstory="Experte für Technologietrends.",
+        role='Technologie-Analyst',
+        goal=f'Analysiere {topic} und liefere technische Fakten auf Deutsch.',
+        backstory="Du bist ein präziser deutscher IT-Analyst.",
         llm=gemini_llm,
-        max_iter=1,
-        verbose=True
+        max_iter=1
     )
     
-    # 2. Agent: Der Stratege (Business & Use-Cases)
     strategist = Agent(
         role='Business-Stratege',
-        goal=f'Use-Cases für {topic} entwickeln',
-        backstory="Experte für digitale Geschäftsmodelle.",
+        goal=f'Entwickle 3 Business-Szenarien für {topic} auf Deutsch.',
+        backstory="Du bist ein erfahrener Unternehmensberater.",
         llm=gemini_llm,
-        max_iter=1,
-        verbose=True
+        max_iter=1
     )
     
-    # 3. Agent: Der Kommunikator (Zusammenfassung)
-    creator = Agent(
-        role='Bericht-Autor',
-        goal=f'Management-Summary zu {topic} schreiben',
-        backstory="Experte für prägnante Zusammenfassungen.",
-        llm=gemini_llm,
-        max_iter=1,
-        verbose=True
-    )
-
-    # 4. Agent: Der Designer (NEU!)
     designer = Agent(
-        role='Visual Design Konzeptionist',
-        goal=f'Entwickle eine Infografik-Struktur und ein detailliertes Textdokument für {topic}',
-        backstory="Du bist Experte für visuelle Kommunikation und erstellst überzeugende Konzepte für Infografiken und präsentable Berichte.",
+        role='Visual-Designer',
+        goal='Erstelle eine Zusammenfassung auf Deutsch UND einen SVG-Code für eine Infografik.',
+        backstory="""Du bist Profi für Datenvisualisierung. 
+        Deine Aufgabe ist es, die Ergebnisse in ein schönes SVG-Format (Scalable Vector Graphics) 
+        zu gießen, das direkt im Browser angezeigt werden kann.""",
         llm=gemini_llm,
-        max_iter=1,
-        verbose=True
+        max_iter=1
     )
 
-    # Tasks definieren
-    t1 = Task(description=f"Analysiere {topic}.", agent=analyst, expected_output="Technik-Liste.")
-    t2 = Task(description=f"Business-Cases für {topic}.", agent=strategist, expected_output="3 Szenarien.")
-    t3 = Task(description=f"Management-Summary für {topic}.", agent=creator, expected_output="Markdown Bericht.")
-    
-    # NEUE AUFGABE für den Designer
-    t4 = Task(
-        description=f"""Basierend auf der technischen Analyse, den Business-Cases und dem Management-Summary:
-        1. Erstelle eine detaillierte Beschreibung für eine Infografik (Elemente, Layout, Farben, Botschaft).
-        2. Formatiere den gesamten Inhalt des Management-Summarys in ein professionelles, ausführliches Textdokument (z.B. als erweiterter Markdown-Bericht).
-        """,
+    # TASKS
+    t1 = Task(description=f"Technik-Check für {topic} auf Deutsch.", agent=analyst, expected_output="Faktenliste.")
+    t2 = Task(description=f"Business-Szenarien für {topic} auf Deutsch.", agent=strategist, expected_output="Szenarien-Liste.")
+    t3 = Task(
+        description=f"""Fasse alles auf Deutsch zusammen. 
+        Erstelle am Ende des Berichts eine Infografik als SVG-Code. 
+        Die Grafik soll die 3 wichtigsten Punkte von {topic} visualisieren.""",
         agent=designer,
-        expected_output="Ein detailliertes Infografik-Konzept und ein ausführliches, professionell formatiertes Textdokument (Markdown)."
+        expected_output="Ein ausführlicher deutscher Bericht und ein sauberer <svg>...</svg> Codeblock."
     )
 
-    # Crew zusammenstellen (jetzt mit 4 Agenten und 4 Tasks)
-    crew = Crew(
-        agents=[analyst, strategist, creator, designer], # Alle 4 Agenten
-        tasks=[t1, t2, t3, t4], # Alle 4 Tasks
-        max_rpm=2, # Bremse bleibt drin
-        verbose=True
-    )
+    crew = Crew(agents=[analyst, strategist, designer], tasks=[t1, t2, t3], max_rpm=2)
     
-    with st.spinner('Das komplette Team arbeitet: Analysiert, plant, schreibt und designt Konzepte...'):
-        try:
-            result = crew.kickoff()
-            st.success("Komplette Analyse mit Designkonzept abgeschlossen!")
-            st.markdown(str(result))
+    with st.spinner('Das Team arbeitet...'):
+        result = str(crew.kickoff())
+        
+        # Trennung von Text und SVG-Code
+        if "<svg" in result:
+            parts = result.split("<svg")
+            text_part = parts[0]
+            svg_part = "<svg" + parts[1].split("</svg>")[0] + "</svg>"
             
-            # Hier könntest du später einen Button einbauen, um die Infografik zu generieren
-            # if st.button("Infografik generieren"):
-            #    st.markdown("Platzhalter für Infografik-Generierung")
-            #    # Hier würde die API zum Bild-Generator aufgerufen
+            st.success("Analyse abgeschlossen!")
             
-        except Exception as e:
-            if "429" in str(e):
-                st.error("Google-Limit erreicht (429). Bitte warte 60 Sekunden und versuche es erneut.")
-            else:
-                st.error(f"Ein unbekannter Fehler ist aufgetreten: {e}")
+            # Anzeige des Berichts
+            st.markdown(text_part)
+            
+            # Anzeige der Infografik
+            st.subheader("📊 Visuelle Infografik")
+            components.html(svg_part, height=500, scrolling=True)
+        else:
+            st.markdown(result)
