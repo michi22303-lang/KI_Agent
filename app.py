@@ -1,44 +1,85 @@
 import streamlit as st
-from crewai import Agent, Task, Crew
+from crewai import Agent, Task, Crew, LLM
 import os
 
-# UI Titel
-st.title("🤖 Mein KI-Agenten-Team")
+# Seite konfigurieren
+st.set_page_config(page_title="Digitalisierungs-Strategie Team", page_icon="🚀")
 
-# Sidebar für API Key (falls du ihn nicht fest verbauen willst)
-api_key = st.sidebar.text_input("OpenAI API Key", type="password")
+# Key sicher aus Streamlit Secrets laden
+try:
+    google_key = st.secrets["GOOGLE_API_KEY"]
+except Exception:
+    st.error("Fehler: GOOGLE_API_KEY wurde nicht in den Secrets gefunden.")
+    st.stop()
 
-topic = st.text_input("Über welches Thema sollen die Agenten recherchieren?", "KI-Trends 2026")
+st.title("🚀 Digitalisierungs-Strategie Team")
+st.markdown("Dieses Team aus KI-Agenten analysiert Trends und entwickelt Business-Szenarien für 2026.")
 
-if st.button("Crew starten"):
-    if not api_key:
-        st.error("Bitte gib einen API Key ein!")
-    else:
-        os.environ["OPENAI_API_KEY"] = api_key
-        
-        # Agenten definieren
-        researcher = Agent(
-            role='Forscher',
-            goal=f'Finde bahnbrechende Infos zu {topic}',
-            backstory="Du bist ein Experte für Technologie-Analysen.",
-            allow_delegation=False
-        )
-        
-        writer = Agent(
-            role='Schreiber',
-            goal=f'Erstelle einen Bericht über {topic}',
-            backstory="Du bist ein Profi-Journalist.",
-            allow_delegation=False
-        )
+topic = st.text_input("Welches Digitalisierungs-Thema soll analysiert werden?", "Autonome Logistik-Drohnen")
 
-        # Tasks definieren
-        task1 = Task(description=f"Analysiere {topic}.", agent=researcher, expected_output="3 Kernpunkte.")
-        task2 = Task(description=f"Schreibe Bericht über {topic}.", agent=writer, expected_output="Ein Artikel.")
+if st.button("Strategie-Analyse starten"):
+    # Das Gemini Modell initialisieren
+    gemini_llm = LLM(
+        model="gemini/gemini-1.5-flash", 
+        api_key=google_key
+    )
+    
+    # 1. Agent: Der Analyst
+    analyst = Agent(
+        role='Technologie-Analyst',
+        goal=f'Identifiziere technologische Fakten und Risiken zu {topic}',
+        backstory="Du bist Experte für IT-Infrastruktur und erkennst technologische Hypes von echten Durchbrüchen.",
+        llm=gemini_llm,
+        allow_delegation=False,
+        verbose=True
+    )
+    
+    # 2. Agent: Der Stratege
+    strategist = Agent(
+        role='Digital-Business-Strategist',
+        goal=f'Entwickle wirtschaftliche Use-Cases und ROI-Szenarien für {topic}',
+        backstory="Du bist spezialisiert auf digitale Transformation und Geschäftsentwicklung im Mittelstand.",
+        llm=gemini_llm,
+        allow_delegation=False,
+        verbose=True
+    )
+    
+    # 3. Agent: Der Kommunikator
+    creator = Agent(
+        role='Executive Editor',
+        goal=f'Erstelle ein überzeugendes Management-Summary über {topic}',
+        backstory="Du schreibst für Vorstände und Geschäftsführer – präzise, faktenbasiert und visionär.",
+        llm=gemini_llm,
+        allow_delegation=False,
+        verbose=True
+    )
 
-        # Crew ausführen
-        crew = Crew(agents=[researcher, writer], tasks=[task1, task2])
-        
-        with st.spinner('Die Agenten arbeiten...'):
-            result = crew.kickoff()
-            st.success("Erledigt!")
-            st.markdown(result)
+    # Tasks definieren
+    t1 = Task(
+        description=f"Analysiere den aktuellen Stand und die Trends von {topic} mit Fokus auf das Jahr 2026.",
+        agent=analyst,
+        expected_output="Eine detaillierte Liste technischer Fakten und potenzieller Risiken."
+    )
+    t2 = Task(
+        description=f"Entwickle basierend auf der Analyse drei konkrete Business-Szenarien für Unternehmen.",
+        agent=strategist,
+        expected_output="Drei Use-Cases mit jeweils einem kurzen Nutzenversprechen (ROI)."
+    )
+    t3 = Task(
+        description=f"Fasse alle Erkenntnisse in einem strukturierten Management-Summary zusammen (Markdown).",
+        agent=creator,
+        expected_output="Ein fertiger Bericht mit Einleitung, Technik-Check, Business-Szenarien und Fazit."
+    )
+
+    # Crew zusammenstellen
+    crew = Crew(
+        agents=[analyst, strategist, creator],
+        tasks=[t1, t2, t3],
+        verbose=True
+    )
+    
+    with st.spinner('Die Agenten analysieren, diskutieren und schreiben...'):
+        result = crew.kickoff()
+        st.success("Analyse abgeschlossen!")
+        st.markdown("---")
+        st.markdown(str(result))
